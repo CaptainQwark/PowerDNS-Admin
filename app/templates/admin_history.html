@@ -30,6 +30,7 @@
                         <thead>
                             <tr>
                                 <th>Changed by</th>
+                                <th>Domain</th>
                                 <th>Content</th>
                                 <th>Time</th>
                                 <th>Detail</th>
@@ -39,10 +40,11 @@
                             {% for history in histories %}
                             <tr class="odd gradeX">
                                 <td>{{ history.created_by }}</td>
-                                <td>{{ history.msg }}</td>
+                                <td>{{ history.domain if history.domain is not none }}</td>
+                                <td>{{ history.msg }}{# " for "+history.domain if history.domain is not none #}</td>
                                 <td>{{ history.created_on }}</td>
                                 <td width="6%">
-                                    <button type="button" class="btn btn-flat btn-primary history-info-button" value='{{ history.detail|replace("[]","None") }}'>
+                                    <button type="button" class="btn btn-flat btn-primary history-info-button" value='{%- with detail=history.detail -%}{%- include "history_detail.html" -%}{%- endwith -%}'>
                                         Info&nbsp;<i class="fa fa-info"></i>
                                     </button>
                                 </td>
@@ -74,7 +76,7 @@
     $(document.body).on('click', '.history-info-button', function() {
         var modal = $("#modal_history_info");
         var info = $(this).val();
-        modal.find('.modal-body p').text(info);
+        modal.find('.modal-body p').html(info);
         modal.modal('show');
     });
 </script>

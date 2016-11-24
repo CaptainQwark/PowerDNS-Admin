@@ -14,3 +14,27 @@ table td {
 .btn {
     padding: 5px 4px !important;
 }
+
+.detail {
+    font-family: Consolas, mono-spaced;
+    white-space: pre;
+    float: none;
+    margin: 0 auto;
+}
+
+.detail_grey {
+    color: grey;
+    font-size: 90%;
+}
+
+.detail_cell {
+    padding: 1px 7px;
+}
+
+.detail_min {
+    background: #ffdddd;
+}
+
+.detail_plus {
+    background: #ddffdd;
+}

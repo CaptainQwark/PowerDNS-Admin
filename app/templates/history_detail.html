@@ -1,0 +1,30 @@
+{% if history %}
+    <table>
+    <tr><td>changed by</td><td>{{ history.created_by }}</td></tr>
+    <tr><td>domain</td><td>{{ history.domain }}</td><tr>
+    <tr><td>changed at</td><td>{{ history.created_on }}</td></tr>
+    <tr><td>change</td><td>{{ history.msg }}</td></tr>
+    </table>
+    {% if history.detail %}
+        {% set detail = history.detail %}
+        details:
+    {% endif %}
+{% else %}
+    changes:
+{% endif %}
+{% if detail %}
+<table class="detail">
+{% if detail[0] is defined and detail[0]['action'] is defined %}{# this is a zone change detail record -- need better way to detect? #}
+{% for item in detail %}
+<tr class="detail_{{ 'plus' if item.action == '+' else 'min' }}"><td>{{ item.action }}</td>
+{% for cell in item.record %}
+<td class="detail_cell">{{ cell }}</td>
+{% endfor %}
+<td class=detail_grey>({{ item.state }})</td>
+{% endfor %}
+{% else %}{# regular detail record, just dump the keys #}
+{% for key in detail %}
+<tr class=""><td>{{ key }}:</td><td>{{ detail[key] }}</td></tr>
+{% endfor %}
+{% endif %}
+{% endif %}

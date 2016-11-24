@@ -59,7 +59,10 @@ def fetch_remote(remote_url, method='GET', data=None, accept=None, params=None, 
 
 
 def fetch_json(remote_url, method='GET', data=None, params=None, headers=None):
+
     r = fetch_remote(remote_url, method=method, data=data, params=params, headers=headers, accept='application/json; q=1')
+
+#    print('fetch_json', remote_url, r.status_code, r.content)
 
     if method == "DELETE":
         return True
@@ -81,7 +84,6 @@ def fetch_json(remote_url, method='GET', data=None, params=None, headers=None):
     except UnicodeDecodeError:
         data = json.loads(r.content, 'iso-8859-1')
     return data
-
 
 def display_record_name(data):
     record_name, domain_name = data

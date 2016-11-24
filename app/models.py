@@ -1,5 +1,6 @@
 import os
 import ldap
+import json
 import time
 import base64
 import bcrypt
@@ -7,6 +8,7 @@ import urlparse
 import itertools
 import traceback
 import onetimepass
+import difflib
 
 from datetime import datetime
 from distutils.version import StrictVersion
@@ -39,6 +41,25 @@ if StrictVersion(PDNS_VERSION) >= StrictVersion('4.0.0'):
     NEW_SCHEMA = True
 else:
     NEW_SCHEMA = False
+
+
+class JsonEncodedDict(db.TypeDecorator):
+    """Enables JSON storage by encoding and decoding on the fly."""
+    impl = db.Text
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            value = json.dumps(value)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            try:
+                value = json.loads(value)
+            except ValueError as e:
+                pass
+#                value = str(e)
+        return value
 
 class Anonymous(AnonymousUserMixin):
   def __init__(self):
@@ -696,7 +717,29 @@ class Domain(db.Model):
             except:
                 return {'status': 'error', 'msg': 'There was something wrong, please contact administrator'}
         else:
-            return {'status': 'error', 'msg': 'This domain doesnot exist'}
+            return {'status': 'error', 'msg': 'This domain does not exist'}
+
+    def set_domain_dnssec(self, domain_name, dnssec_status):
+        # we should not pass domain_name here. __init__ should be able to handle existing domains
+        domain = Domain.query.filter(Domain.name == domain_name).first()
+        if domain:
+            headers = {}
+            headers['X-API-Key'] = PDNS_API_KEY
+            try:
+                postdata = { 'dnssec': True if dnssec_status == 'True' else False,
+                             'kind': domain.type } # always need to specify kind.. works for master or native only, I presume.
+
+                jdata = utils.fetch_json(urlparse.urljoin(PDNS_STATS_URL, API_EXTENDED_URL + '/servers/localhost/zones/%s' % domain.name), headers=headers, method='PUT', data=postdata)
+                if 'error' in jdata:
+                    return {'status': 'error', 'msg': 'failed to set dnssec status for this domaine'}
+                else:
+                    return {'status': 'ok', 'msg': jdata}
+            except:
+                return {'status': 'error', 'msg': 'There was something wrong, please contact administrator'}
+        else:
+            return {'status': 'error', 'msg': 'This domain does not exist'}
+
+        
 
 
 class DomainUser(db.Model):
@@ -833,13 +876,13 @@ class Record(object):
         return deleted_records, new_records
 
 
-    def apply(self, domain, post_records):
+    def get_changes(self, domain, post_records):
         """
-        Apply record changes to domain
+        get record changes for domain
         """
         deleted_records, new_records = self.compare(domain, post_records)
 
-        records = []
+        delete_records = []
         for r in deleted_records:
             record = {
                         "name": r['name'] + '.' if NEW_SCHEMA else r['name'],
@@ -848,9 +891,8 @@ class Record(object):
                         "records": [
                         ]
                     }
-            records.append(record)
+            delete_records.append(record)
 
-        postdata_for_delete = {"rrsets": records}
 
         records = []
         for r in new_records:
@@ -890,11 +932,11 @@ class Record(object):
         final_records = []
         if NEW_SCHEMA:
             records = sorted(records, key = lambda item: (item["name"], item["type"]))
-            for key, group in itertools.groupby(records, lambda item: (item["name"], item["type"])):
+            for key, group in itertools.groupby(records, lambda item: (item["name"], item["type"], item["ttl"])):
                 new_record = {
                         "name": key[0],
                         "type": key[1],
-                        "ttl": records[0]['ttl'],
+                        "ttl": key[2],
                         "changetype": "REPLACE",
                         "records": []
                     }
@@ -928,8 +970,51 @@ class Record(object):
                             } for item in group
                         ]
                     })
+        return delete_records, final_records
 
-        postdata_for_new = {"rrsets": final_records}
+    def flatten(self, domain, records):
+        text = []
+        for record in records:
+            for item in record['records']:
+                name = record['name'].rstrip('.') # cut off the trailing dot if it's there (we should make pdns-admin use dots as well)
+                name = name[:-len(domain)-1] # evey name is canonical so just chop off the len(domein) plus the dot
+                if len(name) == 0: 
+                    name = '@'
+                content = item['content']
+                
+                text.append('|$|'.join([name, str(record['ttl']), record['type'], content, 'Disabled' if item['disabled'] else 'Active']))
+    
+        return text
+    
+    def get_diff(self, domain, post_data):
+
+        delete_records, new_records = self.get_changes(domain, post_data)
+        current_records = self.get_record_data(domain)['records']
+
+        # filter-out non editable records
+        current_records = [ r for r in current_records if r['type'] in app.config['RECORDS_ALLOW_EDIT']]
+    
+        cur = self.flatten(domain, current_records)
+        new = self.flatten(domain, new_records)
+       
+        diff = difflib.ndiff(sorted(cur),sorted(new),)
+    
+        differences = []
+    
+        for line in diff:
+            if not line.startswith(' ') and not line.startswith('?'): # skip unchanged and info lines
+                fields =  line[1:].split('|$|',4)
+                differences.append({'action': line[0], 'state': fields[4], 'record': fields[0:4]})
+
+        return differences
+    
+
+    def apply(self, domain, post_records):
+
+        delete_records, new_records = self.get_changes(domain, post_records)
+
+        postdata_for_delete = {"rrsets": delete_records}
+        postdata_for_new = {"rrsets": new_records}
 
         try:
             headers = {}
@@ -1099,15 +1184,18 @@ class Server(object):
 class History(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     msg = db.Column(db.String(256))
-    detail = db.Column(db.Text())
+#    detail = db.Column(db.Text())
+    detail = db.Column(JsonEncodedDict)
+    domain = db.Column(db.String(255), index=True, unique=False)
     created_by = db.Column(db.String(128))
     created_on = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def __init__(self, id=None, msg=None, detail=None, created_by=None):
+    def __init__(self, id=None, msg=None, detail=None, created_by=None, domain=None):
         self.id = id
         self.msg = msg
         self.detail = detail
         self.created_by = created_by
+        self.domain = domain
 
     def __repr__(self):
         return '<History %r>' % (self.msg)
@@ -1120,6 +1208,7 @@ class History(db.Model):
         h.msg = self.msg
         h.detail = self.detail
         h.created_by = self.created_by
+        h.domain = self.domain
         db.session.add(h)
         db.session.commit()
 

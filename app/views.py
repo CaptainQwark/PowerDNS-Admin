@@ -310,7 +310,7 @@ def domain_add():
             d = Domain()
             result = d.add(domain_name=domain_name, domain_type=domain_type, soa_edit_api=soa_edit_api, domain_master_ips=domain_master_ips)
             if result['status'] == 'ok':
-                history = History(msg='Add domain %s' % domain_name, detail=str({'domain_type': domain_type, 'domain_master_ips': domain_master_ips}), created_by=current_user.username)
+                history = History(msg='Add domain', domain=domain_name, detail={'domain_type': domain_type, 'domain_master_ips': domain_master_ips}, created_by=current_user.username)
                 history.add()
                 return redirect(url_for('dashboard'))
             else:
@@ -330,7 +330,7 @@ def domain_delete(domain_name):
     if result['status'] == 'error':
         return redirect(url_for('error', code=500))
 
-    history = History(msg='Delete domain %s' % domain_name, created_by=current_user.username)
+    history = History(msg='Delete domain', domain=domain_name, created_by=current_user.username)
     history.add()
 
     return redirect(url_for('dashboard'))
@@ -363,15 +363,16 @@ def domain_management(domain_name):
         # grant/revoke user privielges 
         d.grant_privielges(new_user_list)
 
-        history = History(msg='Change domain %s access control' % domain_name, detail=str({'user_has_access': new_user_list}), created_by=current_user.username)
+        history = History(msg='Change domain access control', domain=domain_name, detail={'user_has_access': new_user_list}, created_by=current_user.username)
         history.add()
 
         return redirect(url_for('domain_management', domain_name=domain_name))
 
 
 @app.route('/domain/<string:domain_name>/apply', methods=['POST'], strict_slashes=False)
+@app.route('/domain/<string:domain_name>/apply/<string:extra>', methods=['POST'], strict_slashes=False)
 @login_required
-def record_apply(domain_name):
+def record_apply(domain_name, extra=None):
     """
     example jdata: {u'record_ttl': u'1800', u'record_type': u'CNAME', u'record_name': u'test4', u'record_status': u'Active', u'record_data': u'duykhanh.me'}
     """
@@ -394,9 +395,15 @@ def record_apply(domain_name):
             records.append(record)
 
         r = Record()
+        
+        diff = r.get_diff(domain_name, records)
+
+        if extra == 'get_diff':
+            return render_template('history_detail.html', detail=diff)
+        
         result = r.apply(domain_name, records)
         if result['status'] == 'ok':
-            history = History(msg='Apply record changes to domain %s' % domain_name, detail=str(records), created_by=current_user.username)
+            history = History(msg='Apply record changes', domain=domain_name, detail=diff, created_by=current_user.username)
             history.add()
             return make_response(jsonify( result ), 200)
         else:
@@ -451,6 +458,49 @@ def domain_dnssec(domain_name):
     dnssec = domain.get_domain_dnssec(domain_name)
     return make_response(jsonify(dnssec), 200)
 
+@app.route('/domain/<string:domain_name>/dnssec', methods=['POST'])
+@login_required
+#admin_role_required
+def domain_setdnssec(domain_name):
+    if request.method == 'POST':
+        #
+        # { 'dnssec' : True|False }
+        #
+        try:
+            pdata = request.data
+            status = json.loads(pdata)['dnssec']
+
+            domain = Domain()
+            result = domain.set_domain_dnssec(domain_name, status)
+            print(result)
+            
+
+            if result:
+                print(result)
+                setting = False
+
+                return make_response(jsonify({'status': 'ok', 'msg': 'dnssec updated'}))
+
+                if setting:
+                    if setting.set(new_value):
+                        history = History(msg='Setting %s changed value to %s' % (new_setting, new_value), domain=domain, created_by=current_user.username)
+                        history.add()
+                        return make_response(jsonify( { 'status': 'ok', 'msg': 'Setting updated.' } ))
+                    else:
+                        return make_response(jsonify( { 'status': 'error', 'msg': 'Unable to set value of setting.' } ))
+                elif setting:
+                    if domain.add_setting(new_setting, new_value):
+                        history = History(msg='New setting %s with value %s has been created' % (new_setting, new_value), domain=domain.name, created_by=current_user.username)
+                        history.add()
+                        return make_response(jsonify( { 'status': 'ok', 'msg': 'New setting created and updated.' } ))
+                    else:
+                        return make_response(jsonify( { 'status': 'error', 'msg': 'Unable to create new setting.' } )) 
+            else:
+                return make_response(jsonify( { 'status': 'error', 'msg': 'Action not supported.' } ), 400)
+        except:
+            print traceback.format_exc()
+            return make_response(jsonify( { 'status': 'error', 'msg': 'There is something wrong, please contact Administrator.' } ), 400)
+
 @app.route('/domain/<string:domain_name>/managesetting', methods=['GET', 'POST'])
 @login_required
 @admin_role_required
@@ -458,7 +508,12 @@ def admin_setdomainsetting(domain_name):
     if request.method == 'POST':
         #
         # post data should in format
-        # {'action': 'set_setting', 'setting': 'default_action, 'value': 'True'}
+        #   {  'action' : 'set_setting',
+        #       'data' : {
+        #           'setting' : 'setting_name',
+        #           'value' : 'setting_value',
+        #       }
+        #   }
         #
         try:
             pdata = request.data
@@ -469,17 +524,17 @@ def admin_setdomainsetting(domain_name):
                 new_value = str(data['value'])
                 domain = Domain.query.filter(Domain.name == domain_name).first()
                 setting = DomainSetting.query.filter(DomainSetting.domain == domain).filter(DomainSetting.setting == new_setting).first()
-                
+
                 if setting:
                     if setting.set(new_value):
-                        history = History(msg='Setting %s changed value to %s for %s' % (new_setting, new_value, domain.name), created_by=current_user.username)
+                        history = History(msg='Setting %s changed value to %s' % (new_setting, new_value), domain=domain, created_by=current_user.username)
                         history.add()
                         return make_response(jsonify( { 'status': 'ok', 'msg': 'Setting updated.' } ))
                     else:
                         return make_response(jsonify( { 'status': 'error', 'msg': 'Unable to set value of setting.' } ))
                 else:
                     if domain.add_setting(new_setting, new_value):
-                        history = History(msg='New setting %s with value %s for %s has been created' % (new_setting, new_value, domain.name), created_by=current_user.username)
+                        history = History(msg='New setting %s with value %s has been created' % (new_setting, new_value), domain=domain.name, created_by=current_user.username)
                         history.add()
                         return make_response(jsonify( { 'status': 'ok', 'msg': 'New setting created and updated.' } ))
                     else:
@@ -751,14 +806,14 @@ def dyndns_update():
     if r.exists(domain.name) and r.is_allowed:
         if r.data == myip:
             # record content did not change, return 'nochg'
-            history = History(msg="DynDNS update: attempted update of %s but record did not change" % hostname, created_by=current_user.username)
+            history = History(msg="DynDNS update: attempted update of %s but record did not change" % hostname, domain=domain.name, created_by=current_user.username)
             history.add()
             return render_template('dyndns.html', response='nochg'), 200
         else:
             oldip = r.data
             result = r.update(domain.name, myip)
             if result['status'] == 'ok':
-                history = History(msg='DynDNS update: updated record %s in zone %s, it changed from %s to %s' % (hostname,domain.name,oldip,myip), detail=str(result), created_by=current_user.username)
+                history = History(msg='DynDNS update: updated record %s, it changed from %s to %s' % (hostname,oldip,myip), domain=domain.name, detail=str(result), created_by=current_user.username)
                 history.add()
                 return render_template('dyndns.html', response='good'), 200
             else:
@@ -769,11 +824,11 @@ def dyndns_update():
             record = Record(name=hostname,type='A',data=myip,status=False,ttl=3600)
             result = record.add(domain.name)
             if result['status'] == 'ok':
-                history = History(msg='DynDNS update: created record %s in zone %s, it now represents %s' % (hostname,domain.name,myip), detail=str(result), created_by=current_user.username)
+                history = History(msg='DynDNS update: created record %s, it now represents %s' % (hostname,myip), domain=domain.name, detail=str(result), created_by=current_user.username)
                 history.add()
                 return render_template('dyndns.html', response='good'), 200
             
-    history = History(msg="DynDNS update: attempted update of %s but it does not exist for this user" % hostname, created_by=current_user.username)
+    history = History(msg="DynDNS update: attempted update of %s but it does not exist for this user" % hostname, domain=domain.name, created_by=current_user.username)
     history.add()
     return render_template('dyndns.html', response='nohost'), 200
 

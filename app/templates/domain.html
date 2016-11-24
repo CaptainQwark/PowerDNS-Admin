@@ -28,6 +28,8 @@
                     <button type="button" class="btn btn-flat btn-primary pull-left button_add_record" id="{{ domain.name }}">
                         Add Record&nbsp;<i class="fa fa-plus"></i>
                     </button>
+                    <div class="diff" id="diff_content">
+                    </div>
                     <button type="button" class="btn btn-flat btn-primary pull-right button_apply_changes" id="{{ domain.name }}">
                         Apply Changes&nbsp;<i class="fa fa-floppy-o"></i>
                     </button>
@@ -161,6 +163,10 @@
         modal.find('#button_delete_confirm').click(function() {
             table.row(nRow).remove().draw();
             modal.modal('hide');
+            // update diff list
+            var data = getTableData(table);
+            fetchData(data, $SCRIPT_ROOT + '/domain/{{ domain.name }}/apply/get_diff', '#diff_content');
+            
         })
         modal.modal('show');
         
@@ -205,6 +211,7 @@
         modal.find('#button_apply_confirm').click(function() {
             var data = getTableData(table);
             applyChanges(data, $SCRIPT_ROOT + '/domain/' + domain + '/apply', true);
+            $('#diff_content').html('');
             modal.modal('hide');
         })
         modal.modal('show');
@@ -248,6 +255,9 @@
             saveRow(table, nEditing);
             nEditing = null;
             nNew = false;
+            // update diff list
+            var data = getTableData(table);
+            fetchData(data, $SCRIPT_ROOT + '/domain/{{ domain.name }}/apply/get_diff', '#diff_content');
         });
     
     //handle update_from_master button

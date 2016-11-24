@@ -29,6 +29,28 @@ function applyChanges(data, url, showResult, refreshPage) {
 
 }
 
+function fetchData(data, url, class_name) {
+	var success = false;
+	$.ajax({
+		type : "POST",
+		url : url,
+		data : JSON.stringify(data),// now data come in this function
+		contentType : "application/json; charset=utf-8",
+		crossDomain : true,
+		dataType : "html",
+		success : function(data, status, jqXHR) {
+            $(class_name).html(data);
+		},
+
+		error : function(jqXHR, status) {
+			console.log(jqXHR);
+//			var modal = $("#modal_error");
+//			modal.find('.modal-body p').text(jqXHR["responseText"]);
+//			modal.modal('show');
+		}
+	});
+}
+
 function getTableData(table) {
 	var rData = []
 
@@ -117,7 +139,7 @@ function SelectElement(elementID, valueToSelect)
     element.value = valueToSelect;
 }
 
-function getdnssec(url){
+function getdnssec(url, domain){
 	
     $.getJSON(url, function(data) {
     	var modal = $("#modal_dnssec_info");
@@ -126,25 +148,35 @@ function getdnssec(url){
     		modal.find('.modal-body p').text(data['msg']);
         }
         else {
-        	dnssec_msg = '';
-            var dnssec = data['dnssec'];
-            for (var i = 0; i < dnssec.length; i++) {
-                if (dnssec[i]['active']){
-                    dnssec_msg += '<form>'+
-                    '<h3><strong>'+dnssec[i]['keytype']+'</strong></h3>'+
-                    '<strong>DNSKEY</strong>'+
-                    '<input class="form-control" autocomplete="off" type="text" readonly="true" value="'+dnssec[i]['dnskey']+'">'+
-                    '</form>'+
-                    '<br/>';
-                    if(dnssec[i]['ds']){
-                        var dsList = dnssec[i]['ds'];
-                        dnssec_msg += '<strong>DS</strong>';
-                        for (var j = 0; j < dsList.length; j++){
-                            dnssec_msg += '<input class="form-control" autocomplete="off" type="text" readonly="true" value="'+dsList[j]+'">';
+            if ( data['dnssec'].length>0 ) {
+            	dnssec_msg = '';
+                var dnssec = data['dnssec'];
+                for (var i = 0; i < dnssec.length; i++) {
+                    if (dnssec[i]['active']){
+                        dnssec_msg += '<form>'+
+                        '<h3><strong>'+dnssec[i]['keytype']+'</strong></h3>'+
+                        '<strong>DNSKEY</strong>'+
+                        '<input class="form-control" autocomplete="off" type="text" readonly="true" value="'+dnssec[i]['dnskey']+'">'+
+                        '</form>'+
+                        '<br/>';
+                        if(dnssec[i]['ds']){
+                            var dsList = dnssec[i]['ds'];
+                            dnssec_msg += '<strong>DS</strong>';
+                            for (var j = 0; j < dsList.length; j++){
+                                dnssec_msg += '<input class="form-control" autocomplete="off" type="text" readonly="true" value="'+dsList[j]+'">';
+                            }
                         }
+                        dnssec_msg += '</form>';
+                        $("#button_dnssec_disable").removeClass('hide');
+                        $("#button_dnssec_disable").prop('data-domain', domain);
+                        $("#button_dnssec_enable").addClass('hide');
                     }
-                    dnssec_msg += '</form>';
-                }
+               }
+           } else {
+                    dnssec_msg = 'DNSSEC not configured. Do you want to enable dnssec on ' + domain +'?<br><br>';
+                    $("#button_dnssec_disable").addClass('hide');
+                    $("#button_dnssec_enable").removeClass('hide');
+                    $("#button_dnssec_enable").prop('data-domain', domain);
             }
     		modal.find('.modal-body p').html(dnssec_msg);
         }

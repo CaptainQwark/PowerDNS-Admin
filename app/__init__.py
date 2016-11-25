@@ -1,9 +1,5 @@
 from werkzeug.contrib.fixers import ProxyFix
-<<<<<<< HEAD
-from flask import Flask
-=======
 from flask import Flask, request, session, redirect, url_for
->>>>>>> e18757e6730287edc9e6d507ff925ba83d7dd68c
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 
@@ -51,6 +47,5 @@ def enable_github_oauth(GITHUB_ENABLE):
     return oauth, github
 
 oauth, github = enable_github_oauth(app.config.get('GITHUB_OAUTH_ENABLE'))
-
 
 from app import views, models

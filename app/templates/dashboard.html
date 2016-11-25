@@ -235,8 +235,8 @@
     $(document.body).on('click', '.history-info-button', function() {
         var modal = $("#modal_history_info");
         var info = $(this).val();
-        modal.find('.modal-body p').html(info);
-#        $('#modal-code-content').html(json_library.prettyPrint(info));
+//        modal.find('.modal-body p').html(info);
+        $('#modal-code-content').html(info);
         modal.modal('show');
     });
     $(document.body).on("click", ".button_dnssec", function() {

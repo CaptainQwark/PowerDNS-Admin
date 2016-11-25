@@ -7,11 +7,8 @@ import bcrypt
 import urlparse
 import itertools
 import traceback
-<<<<<<< HEAD
 import difflib
-=======
 import pyotp
->>>>>>> e18757e6730287edc9e6d507ff925ba83d7dd68c
 
 from datetime import datetime
 from distutils.version import StrictVersion
@@ -880,13 +877,13 @@ class Record(object):
         """
         get record changes for domain
         """
-        deleted_records, new_records = self.compare(domain, records)
+        deleted_records, new_records = self.compare(domain, post_records)
 
         delete_records = []
         for r in deleted_records:
             record = {
-                        "name": r_name,
-                        "type": r_type,
+                        "name": r['name'] + '.' if NEW_SCHEMA else r['name'],
+                        "type": r['type'],
                         "changetype": "DELETE",
                         "records": [
                         ]

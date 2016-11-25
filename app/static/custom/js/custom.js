@@ -183,3 +183,29 @@ function getdnssec(url, domain){
         modal.modal('show');
     });
 }
+
+// pretty JSON
+json_library = {
+    replacer: function(match, pIndent, pKey, pVal, pEnd) {
+        var key = '<span class=json-key>';
+        var val = '<span class=json-value>';
+        var str = '<span class=json-string>';
+        var r = pIndent || '';
+        if (pKey){
+            r = r + key + pKey.replace(/[": ]/g, '') + '</span>: ';
+        }
+        if (pVal){
+            r = r + (pVal[0] == '"' ? str : val) + pVal + '</span>';
+        }
+        return r + (pEnd || '');
+    },
+    prettyPrint: function(obj) {
+        obj = obj.replace(/u'/g, "\'").replace(/'/g, "\"").replace(/(False|None)/g, "\"$1\"");
+        var jsonData = JSON.parse(obj);
+        var jsonLine = /^( *)("[\w]+": )?("[^"]*"|[\w.+-]*)?([,[{])?$/mg;
+            return JSON.stringify(jsonData, null, 3)
+            .replace(/&/g, '&amp;').replace(/\\"/g, '&quot;')
+            .replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(jsonLine, json_library.replacer);
+        }
+    };

@@ -15,7 +15,7 @@ from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug import secure_filename
 from werkzeug.security import gen_salt
 
-from .models import User, Domain, DomainUser, Record, Server, History, Anonymous, Setting, DomainSetting
+from .models import User, Domain, DomainUser, Record, Server, History, Anonymous, Setting, DomainSetting, Role
 from app import app, login_manager, github
 from lib import utils
 
@@ -596,36 +596,51 @@ def admin():
 
     return render_template('admin.html', domains=domains, users=users, configs=configs, statistics=statistics, uptime=uptime, history_number=history_number)
 
-@app.route('/admin/user/create', methods=['GET', 'POST'])
+@app.route('/admin/user/<action>', methods=['GET', 'POST'])
+@app.route('/admin/user/<action>/<user_id>', methods=['GET', 'POST'])
 @login_required
 @admin_role_required
-def admin_createuser():
-    if request.method == 'GET':
-        return render_template('admin_createuser.html')
+def admin_cruduser(action, user_id = None):
+
+    # load user object if possible
+    if user_id is not None:
+        user = load_user(user_id)
+    else: 
+        user = None
+
+    if action in ('create', 'update') and request.method == 'GET':
+        roles = Role.query.all()
+        return render_template('admin_cruduser.html', roles=roles, user=user, action=action)
 
     if request.method == 'POST':
         fdata = request.form
+        newuser = User(reload_info=False, username=fdata['username'], plain_text_password=fdata['password'], firstname=fdata['firstname'], lastname=fdata['lastname'], email=fdata['email'], role_id=fdata['role'])
 
-        user = User(username=fdata['username'], plain_text_password=fdata['password'], firstname=fdata['firstname'], lastname=fdata['lastname'], email=fdata['email'])
+        if action == 'update':
+#            User.query.get(user_id).update({firstname: fdata['firstname']})
+            print("id:{} role:{} object:{}".format(user_id, fdata['role'], newuser.firstname))
+            newuser.update_profile(user_id)
+            
+        if action == 'create': 
+            if fdata['password'] == "":
+                return render_template('admin_cruduser.html', user=newuser, blank_password=True)
 
-        if fdata['password'] == "":
-            return render_template('admin_createuser.html', user=user, blank_password=True)
+            result = newuser.create_local_user();
 
-        result = user.create_local_user();
+            if result == 'Email already existed':
+                return render_template('admin_cruduser.html', user=newuser, duplicate_email=True)
 
-        if result == 'Email already existed':
-            return render_template('admin_createuser.html', user=user, duplicate_email=True)
+            if result == 'Username already existed':
+                return render_template('admin_cruduser.html', user=newuser, duplicate_username=True)
 
-        if result == 'Username already existed':
-            return render_template('admin_createuser.html', user=user, duplicate_username=True)
-
-        return redirect(url_for('admin_manageuser'))
+    return redirect(url_for('admin_manageuser'))
 
 @app.route('/admin/manageuser', methods=['GET', 'POST'])
 @login_required
 @admin_role_required
 def admin_manageuser():
-    if request.method == 'GET':
+
+    if request.method == 'GET': 
         users = User.query.order_by(User.username).all()
         return render_template('admin_manageuser.html', users=users)
 
@@ -649,7 +664,7 @@ def admin_manageuser():
                 else:
                     return make_response(jsonify( { 'status': 'error', 'msg': 'Cannot remove user.' } ), 500)
 
-            elif jdata['action'] == 'revoke_user_privielges':
+            elif jdata['action'] == 'revoke_user_privileges':
                 user = User(username=data)
                 result = user.revoke_privilege()
                 if result:
@@ -745,7 +760,7 @@ def user_profile():
             data = jdata['data']
             if jdata['action'] == 'enable_otp':
                 enable_otp = data['enable_otp']
-                user = User(username=current_user.username)
+                user = User(id=current_user.id)
                 user.update_profile(enable_otp=enable_otp)
                 return make_response(jsonify( { 'status': 'ok', 'msg': 'Change OTP Authentication successfully. Status: %s' % enable_otp } ), 200)
 
@@ -763,8 +778,8 @@ def user_profile():
 
 
         # update user profile
-        user = User(username=current_user.username, plain_text_password=new_password, firstname=firstname, lastname=lastname, email=email, avatar=save_file_name, reload_info=False)
-        user.update_profile()
+        user = User(id=current_user.id,plain_text_password=new_password, firstname=firstname, lastname=lastname, email=email, avatar=save_file_name, reload_info=False)
+        user.update_profile() 
 
         return render_template('user_profile.html')
 

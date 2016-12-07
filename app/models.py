@@ -280,8 +280,10 @@ class User(db.Model):
         if user:
             return 'Email already existed'
 
-        # first register user will be in Administrator role
-        self.role_id = Role.query.filter_by(name='User').first().id
+        # Default role = 'User' unless already defined
+        if self.role_id == None:
+            self.role_id = Role.query.filter_by(name='User').first().id
+        # first register user will always be in Administrator role
         if User.query.count() == 0:
             self.role_id = Role.query.filter_by(name='Administrator').first().id
         self.password = self.get_hashed_password(self.plain_text_password)
@@ -290,18 +292,25 @@ class User(db.Model):
         db.session.commit()
         return True
 
-    def update_profile(self, enable_otp=None):
+    def update_profile(self, user_id=None, enable_otp=None): # update exiting user
         """
         Update user profile
         """
 
-        user = User.query.filter(User.username == self.username).first()
+        if user_id is None: # non admin update
+            user_id = self.id
+
+        user = User.query.get(user_id)
         if not user:
-            return False
+           return False
+        
+
+        print('user found old:{} new:{}'.format(user.firstname, self.firstname))
 
         user.firstname = self.firstname if self.firstname else user.firstname
         user.lastname = self.lastname if self.lastname else user.lastname
         user.email = self.email if self.email else user.email
+        user.role_id = self.role_id if self.role_id else user.role_id
         user.password = self.get_hashed_password(self.plain_text_password) if self.plain_text_password else user.password
         user.avatar = self.avatar if self.avatar else user.avatar
 
@@ -311,12 +320,40 @@ class User(db.Model):
             user.otp_secret = base64.b32encode(os.urandom(10)).decode('utf-8')
 
         try:
-            db.session.add(user)
+            db.session.add(user) # add or update
             db.session.commit()
             return True
         except Exception:
             db.session.rollback()
             return False
+
+#    def update_profile(self, user_id, enable_otp=None):
+#        """
+#        Update user profile
+#        """
+#
+#        user = User.query.filter(User.username == self.username).first()
+#        if not user:
+#            return False
+#
+#        user.firstname = self.firstname if self.firstname else user.firstname
+#        user.lastname = self.lastname if self.lastname else user.lastname
+#        user.email = self.email if self.email else user.email
+#        user.password = self.get_hashed_password(self.plain_text_password) if self.plain_text_password else user.password
+#        user.avatar = self.avatar if self.avatar else user.avatar
+#
+#        user.otp_secret = ""
+#        if enable_otp == True:
+#            # generate the opt secret key
+#            user.otp_secret = base64.b32encode(os.urandom(10)).decode('utf-8')
+#
+#        try:
+#            db.session.add(user)
+#            db.session.commit()
+#            return True
+#        except Exception:
+#            db.session.rollback()
+#            return False
 
     def get_domain(self):
         """

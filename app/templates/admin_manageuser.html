@@ -1,5 +1,4 @@
-{% extends "base.html" %} {% block title %}
-<title>DNS Control Panel - User Management</title>
+{% extends "base.html" %} {% block title %} <title>DNS Control Panel - User Management</title>
 {% endblock %} {% block dashboard_stat %}
 <section class="content-header">
     <h1>
@@ -20,7 +19,7 @@
                     <h3 class="box-title">User Management</h3>
                 </div>
                 <div class="box-body">
-                    <a href="{{ url_for('admin_createuser') }}">
+                    <a href="{{ url_for('admin_cruduser', action='create') }}">
                         <button type="button" class="btn btn-flat btn-primary pull-left button_add_user">
                             Add User&nbsp;<i class="fa fa-plus"></i>
                         </button>
@@ -33,7 +32,8 @@
                                 <th>Username</th>
                                 <th>First Name</th>
                                 <th>Last Name</th>
-                                <th>Admin</th>
+                                <th>Role</th>
+                                <th>Edit</th>
                                 <th>Privileges</th>
                                 <th>Deletion</th>
                             </tr>
@@ -44,13 +44,18 @@
                                 <td>{{ user.username }}</td>
                                 <td>{{ user.firstname }}</td>
                                 <td>{{ user.lastname }}</td>
-                                <td>
-                                    <input type="checkbox" id="{{ user.username }}" class="admin_toggle" {% if user.role.name=='Administrator' %}checked{% endif %}>
+                                <td>{{ user.role.name }}</td>
+                                <td width="6%">
+                                    <button type="button" class="btn btn-flat btn-success button_edit" onclick="window.location.href='{{ url_for('admin_cruduser', action='update', user_id=user.id) }}'">
+                                        Edit&nbsp;<i class="fa fa-edit"></i>
+                                    </button>
                                 </td>
                                 <td width="6%">
+                                {% if user.role.name != 'Administrator' %}
                                     <button type="button" class="btn btn-flat btn-warning button_revoke" id="{{ user.username }}">
                                         Revoke&nbsp;<i class="fa fa-lock"></i>
                                     </button>
+                                {% endif %}
                                 </td>
                                 <td width="6%">
                                     <button type="button" class="btn btn-flat btn-danger button_delete" id="{{ user.username }}">

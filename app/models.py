@@ -748,7 +748,7 @@ class Domain(db.Model):
             return {'status': 'error', 'msg': 'This domain does not exist'}
 
     def set_domain_dnssec(self, domain_name, dnssec_status):
-        # we should not pass domain_name here. __init__ should be able to handle existing domains
+        # I really think we should not pass domain_name here. __init__ should be able to handle existing domains
         domain = Domain.query.filter(Domain.name == domain_name).first()
         if domain:
             headers = {}
@@ -767,8 +767,20 @@ class Domain(db.Model):
         else:
             return {'status': 'error', 'msg': 'This domain does not exist'}
 
+#    def set_domain_soa_edit_api(self, domain_name):
+#        domain = Domain.query.filter(Domain.name == domain_name).first()
+#
+#        if not domain:
+#            return {'status': 'error', 'msg': 'This domain does not exist'}
+#
+#        postdata = { 'soa_edit_api': 'DEFAULT', 'kind': domain.type }
+#        result = utils.do_api('/zones/%s' % domain.name, method='PUT', data=postdata)
+#        if 'error' in result:
+#            logging.error('failed to set soa_edit_api for domain %s' % domain.name)
+#            return False
+#
+#        return True
         
-
 
 class DomainUser(db.Model):
     __tablename__ = 'domain_user'
@@ -1043,9 +1055,8 @@ class Record(object):
         return differences
     
 
-    def apply(self, domain, post_records):
-
-        delete_records, new_records = self.get_changes(domain, post_records)
+    def apply(self, domain_name, post_records):
+        delete_records, new_records = self.get_changes(domain_name, post_records)
 
         postdata_for_delete = {"rrsets": delete_records}
         postdata_for_new = {"rrsets": new_records}
@@ -1053,8 +1064,8 @@ class Record(object):
         try:
             headers = {}
             headers['X-API-Key'] = PDNS_API_KEY
-            jdata1 = utils.fetch_json(urlparse.urljoin(PDNS_STATS_URL, API_EXTENDED_URL + '/servers/localhost/zones/%s' % domain), headers=headers, method='PATCH', data=postdata_for_delete)
-            jdata2 = utils.fetch_json(urlparse.urljoin(PDNS_STATS_URL, API_EXTENDED_URL + '/servers/localhost/zones/%s' % domain), headers=headers, method='PATCH', data=postdata_for_new)
+            jdata1 = utils.fetch_json(urlparse.urljoin(PDNS_STATS_URL, API_EXTENDED_URL + '/servers/localhost/zones/%s' % domain_domain), headers=headers, method='PATCH', data=postdata_for_delete)
+            jdata2 = utils.fetch_json(urlparse.urljoin(PDNS_STATS_URL, API_EXTENDED_URL + '/servers/localhost/zones/%s' % domain_domain), headers=headers, method='PATCH', data=postdata_for_new)
 
             if 'error' in jdata2.keys():
                 logging.error('Cannot apply record changes.')
@@ -1064,7 +1075,7 @@ class Record(object):
                 logging.info('Record was applied successfully.')
                 return {'status': 'ok', 'msg': 'Record was applied successfully'}
         except Exception, e:
-            logging.error("Cannot apply record changes to domain %s. DETAIL: %s" % (str(e), domain))
+            logging.error("Cannot apply record changes to domain %s. DETAIL: %s" % (str(e), domain_name))
             return {'status': 'error', 'msg': 'There was something wrong, please contact administrator'}
 
 

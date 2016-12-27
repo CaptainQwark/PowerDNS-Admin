@@ -119,6 +119,14 @@ def admin_role_required(f):
             return redirect(url_for('error', code=401))
         return f(*args, **kwargs)
     return decorated_function
+
+def editor_role_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not g.user.role.name in ('Editor', 'Administrator'):
+            return redirect(url_for('error', code=401))
+        return f(*args, **kwargs)
+    return decorated_function
 # END CUSTOMIZE DECORATOR
 
 # START VIEWS
@@ -265,7 +273,7 @@ def logout():
 @login_required
 def dashboard():
     d = Domain().update()
-    if current_user.role.name == 'Administrator':
+    if current_user.role.name in ('Administrator', 'Editor'):
         domains = Domain.query.all()
     else:
         domains = User(id=current_user.id).get_domain()
@@ -596,7 +604,7 @@ def admin():
 
     return render_template('admin.html', domains=domains, users=users, configs=configs, statistics=statistics, uptime=uptime, history_number=history_number)
 
-@app.route('/admin/user/<action>', methods=['GET', 'POST'])
+@app.route('/admin/user/<action>', strict_slashes=False, methods=['GET', 'POST'])
 @app.route('/admin/user/<action>/<user_id>', methods=['GET', 'POST'])
 @login_required
 @admin_role_required

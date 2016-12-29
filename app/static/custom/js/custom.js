@@ -89,7 +89,7 @@ function saveRow(oTable, nRow) {
 
 	var record = jqInputs[0].value;
 	var button_edit = "<button type=\"button\" class=\"btn btn-flat btn-warning button_edit\" id=\"" + record +  "\">Edit&nbsp;<i class=\"fa fa-edit\"></i></button>"
-	var button_delete = "<button type=\"button\" class=\"btn btn-flat btn-danger button_edit\" id=\"" + record +  "\">Delete&nbsp;<i class=\"fa fa-trash\"></i></button>"
+	var button_delete = "<button type=\"button\" class=\"btn btn-flat btn-danger button_delete\" id=\"" + record +  "\">Delete&nbsp;<i class=\"fa fa-trash\"></i></button>"
 
 	oTable.cell(nRow,5).data(button_edit);
 	oTable.cell(nRow,6).data(button_delete);
@@ -112,7 +112,7 @@ function editRow(oTable, nRow) {
        var record_type = records_allow_edit[i];
        record_types += "<option value=\"" + record_type + "\">" + record_type + "</option>";
     }
-    jqTds[0].innerHTML = '<input type="text" class="form-control input-small" value="' + aData[0] + '">';
+    jqTds[0].innerHTML = '<input type="text" class="form-control input-small" id="edit-row-focus" value="' + aData[0] + '">';
     jqTds[1].innerHTML = '<select class="form-control" id="record_type" name="record_type" value="' + aData[1]  + '"' + '>' + record_types + '</select>';
     jqTds[2].innerHTML = '<select class="form-control" id="record_status" name="record_status" value="' + aData[2]  + '"' + '><option value="false">Active</option><option value="true">Disabled</option></select>';
     jqTds[3].innerHTML = '<select class="form-control" id="record_ttl" name="record_ttl" value="' + aData[3]  + '"' + '><option value="60">1 minute</option><option value="300">5 minutes</option><option value="1800">30 minutes</option><option value="3600">60 minutes</option><option value="86400">24 hours</option></select>';
@@ -131,6 +131,7 @@ function editRow(oTable, nRow) {
     SelectElement('record_type', aData[1]);
     SelectElement('record_status', isDisabled);
     SelectElement('record_ttl', aData[3]);
+    
 }
 
 function SelectElement(elementID, valueToSelect)

@@ -211,8 +211,11 @@
         modal.find('#button_apply_confirm').click(function() {
             var data = getTableData(table);
             applyChanges(data, $SCRIPT_ROOT + '/domain/' + domain + '/apply', true);
-            $('#diff_content').html('');
+//            $('#diff_content').html('');
             modal.modal('hide');
+            // update diff list
+            var data = getTableData(table);
+            fetchData(data, $SCRIPT_ROOT + '/domain/{{ domain.name }}/apply/get_diff', '#diff_content');
         })
         modal.modal('show');
         
@@ -232,9 +235,9 @@
             // add new row
             var nRow = jQuery('#tbl_records').dataTable().fnAddData(['', 'A', 'Active', 3600, '', '', '', '0']);
             editRow($("#tbl_records").DataTable(), nRow);
-            document.getElementById("edit-row-focus").focus();
             nEditing = nRow;
             nNew = true;
+            $('#edit-row-focus').focus();
         });
     
     //handle cancel button

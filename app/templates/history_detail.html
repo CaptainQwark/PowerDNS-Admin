@@ -9,8 +9,8 @@
         {% set detail = history.detail %}
         details:
     {% endif %}
-{% else %}
-    changes:
+{% elif detail %}
+    &nbsp; changes:
 {% endif %}
 {% if detail %}
 <table class="detail">
@@ -18,7 +18,7 @@
 {% for item in detail %}
 <tr class="detail_{{ 'plus' if item.action == '+' else 'min' }}"><td>{{ item.action }}</td>
 {% for cell in item.record %}
-<td class="detail_cell">{{ cell }}</td>
+<td class="detail_cell">{{ cell|truncate(75) }}</td>
 {% endfor %}
 <td class=detail_grey>({{ item.state }})</td>
 {% endfor %}

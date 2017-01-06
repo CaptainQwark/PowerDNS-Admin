@@ -28,11 +28,11 @@
                     <button type="button" class="btn btn-flat btn-primary pull-left button_add_record" id="{{ domain.name }}">
                         Add Record&nbsp;<i class="fa fa-plus"></i>
                     </button>
-                    <div class="diff" id="diff_content">
-                    </div>
                     <button type="button" class="btn btn-flat btn-primary pull-right button_apply_changes" id="{{ domain.name }}">
                         Apply Changes&nbsp;<i class="fa fa-floppy-o"></i>
                     </button>
+                    <div class="diff" id="diff_content">
+                    </div>
                     {% else %}
                     <button type="button" class="btn btn-flat btn-primary pull-left button_update_from_master" id="{{ domain.name }}">
                         Update from Master&nbsp;<i class="fa fa-download"></i>
@@ -80,7 +80,7 @@
                                     </td>
                                     <td width="6%">
                                     {% if record.is_allowed() %}
-                                        <button type="button" class="btn btn-flat btn-danger button_delete" id="{{ (record.name,domain.name)|display_record_name }}">Delete&nbsp;<i class="fa fa-trash"></i></button>
+                                        <button type="button" class="btn btn-flat btn-danger button_delete" id="{{ (record.name,domain.name)|display_record_name }} {{record.type}} {{record.data}}">Delete&nbsp;<i class="fa fa-trash"></i></button>
                                     {% else %}
                                         <button type="button" class="btn btn-flat btn-warning"">&nbsp;&nbsp;<i class="fa fa-exclamation-circle"></i>&nbsp;&nbsp;</button>
                                     {% endif %}
@@ -158,11 +158,12 @@
         var table = $("#tbl_records").DataTable();
         var record = $(this).prop('id');
         var nRow = $(this).parents('tr')[0];
-        var info = "Are you sure you want to delete " + record + "?"; 
-        modal.find('.modal-body p').text(info);
+//        var info = "Are you sure you want to delete this record?<br>" + record; 
+        modal.find('.modal-body p').text(record);
         modal.find('#button_delete_confirm').click(function() {
             table.row(nRow).remove().draw();
             modal.modal('hide');
+
             // update diff list
             var data = getTableData(table);
             fetchData(data, $SCRIPT_ROOT + '/domain/{{ domain.name }}/apply/get_diff', '#diff_content');
@@ -265,6 +266,8 @@
             var data = getTableData(table);
             fetchData(data, $SCRIPT_ROOT + '/domain/{{ domain.name }}/apply/get_diff', '#diff_content');
         });
+    // handle enter
+
     
     //handle update_from_master button
     $(document.body).on("click", ".button_update_from_master", function (e) {
@@ -404,6 +407,7 @@
                 <h4 class="modal-title">Confirmation</h4>
             </div>
             <div class="modal-body">
+                Are you sure you want to delete this record:
                 <p></p>
             </div>
             <div class="modal-footer">

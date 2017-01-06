@@ -18,7 +18,6 @@ table td {
 .detail {
     font-family: Consolas, mono-spaced;
     white-space: pre;
-    float: none;
     margin: 0 auto;
 }
 
